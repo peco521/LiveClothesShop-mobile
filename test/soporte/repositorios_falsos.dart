@@ -51,10 +51,13 @@ class SesionRepositoryFalso implements SesionRepository {
 }
 
 class CatalogoRepositoryFalso implements CatalogoRepository {
-  CatalogoRepositoryFalso({this.error, this.total = 1});
+  CatalogoRepositoryFalso({this.error, this.total = 1, this.imagenVariante});
 
   Object? error;
   int total;
+
+  /// Imagen de la variante del detalle: permite probar CU16 con textura.
+  String? imagenVariante;
   int llamadas = 0;
 
   @override
@@ -72,7 +75,7 @@ class CatalogoRepositoryFalso implements CatalogoRepository {
   @override
   Future<ProductoDetalle> detalle(String idProd) async {
     if (error != null) throw error!;
-    return detalleFalso(id: idProd);
+    return detalleFalso(id: idProd, imagenVariante: imagenVariante);
   }
 
   @override

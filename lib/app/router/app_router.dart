@@ -17,6 +17,7 @@ import '../../modules/cliente_experiencia_compra/cu13_compra_digital/screens/ven
 import '../../modules/cliente_experiencia_compra/cu14_pago_electronico/screens/pago_screen.dart';
 import '../../modules/cliente_experiencia_compra/cu15_historial_compra/screens/compra_detalle_screen.dart';
 import '../../modules/cliente_experiencia_compra/cu15_historial_compra/screens/historial_screen.dart';
+import '../../modules/cliente_experiencia_compra/cu16_realidad_aumentada/screens/probador_ra_screen.dart';
 import '../../modules/cliente_experiencia_compra/cu17_recomendaciones/screens/recomendaciones_screen.dart';
 import '../../modules/cliente_experiencia_compra/shared/providers/sesion_provider.dart';
 import '../../modules/cliente_experiencia_compra/shared/screens/cuenta_screen.dart';
@@ -110,6 +111,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/producto/:id',
         builder: (_, state) =>
             ProductoDetalleScreen(idProd: state.pathParameters['id'] ?? ''),
+      ),
+      // CU16: probador virtual, se abre desde el detalle de CU10 con la
+      // variante elegida. Solo necesita idProd + idVar (+ talla como contexto).
+      GoRoute(
+        path: ProbadorRaScreen.routePath,
+        builder: (_, state) => ProbadorRaScreen(
+          idProd: state.pathParameters['id'] ?? '',
+          idVar: state.uri.queryParameters['idVar'],
+          talla: state.uri.queryParameters['talla'],
+          cantidad:
+              int.tryParse(state.uri.queryParameters['cantidad'] ?? '') ?? 1,
+        ),
       ),
       GoRoute(
         path: '/reserva/nueva',

@@ -4,4 +4,12 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Solo en compilaciones DEBUG: el backend de desarrollo se sirve por HTTP
+         (por ejemplo http://10.0.2.2:8000/api en el emulador, o la IP de la PC
+         en un teléfono real). Android 9+ bloquea el tráfico en claro por
+         defecto, y sin esta línea la app muestra "No se pudo conectar con la
+         tienda. Revisa tu conexión e inténtalo de nuevo." aunque el backend
+         esté levantado. En release el tráfico en claro sigue bloqueado. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

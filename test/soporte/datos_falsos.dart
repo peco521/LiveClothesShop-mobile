@@ -58,7 +58,10 @@ Map<String, Object?> recomendacionesJson({
   'items': items ?? [recomendacionJson()],
 };
 
-Map<String, Object?> detalleProductoJson({String id = 'p1'}) => {
+Map<String, Object?> detalleProductoJson({
+  String id = 'p1',
+  String? imagenVariante,
+}) => {
   'idProd': id,
   'descripcion': 'Polera Nike Pro',
   'estado': 'activo',
@@ -71,7 +74,7 @@ Map<String, Object?> detalleProductoJson({String id = 'p1'}) => {
       'idVariante': 'v1',
       'sku': 'SKU-1',
       'precio': 45,
-      'imagen': null,
+      'imagen': imagenVariante,
       'talla': {'idTalla': 1, 'descripcion': 'M'},
       'colores': [
         {'idColor': 1, 'descripcion': 'Rojo', 'hex': '#FF0000'},
@@ -193,8 +196,10 @@ Sesion sesionFalsa() => Sesion.fromJson(_json(sesionJsonBackend()));
 ProductoResumen productoFalso({String id = 'p1'}) =>
     ProductoResumen.fromJson(_json(productoJson(id: id)));
 
-ProductoDetalle detalleFalso({String id = 'p1'}) =>
-    ProductoDetalle.fromJson(_json(detalleProductoJson(id: id)));
+ProductoDetalle detalleFalso({String id = 'p1', String? imagenVariante}) =>
+    ProductoDetalle.fromJson(
+      _json(detalleProductoJson(id: id, imagenVariante: imagenVariante)),
+    );
 
 Carrito carritoFalso({bool vacio = false}) =>
     Carrito.fromJson(_json(carritoJson(vacio: vacio)));

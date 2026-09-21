@@ -1,0 +1,40 @@
+{
+  // Ejecuta la app con el backend de desarrollo de LiveClothesShop.
+  //
+  // El backend se sirve por HTTP en la PC (puerto 8000) y `Environment` toma la
+  // URL base de `--dart-define=API_BASE_URL`. Elige la configuración según dónde
+  // ejecutes la app:
+  //   * Emulador Android  -> 10.0.2.2 es el alias del host (por defecto).
+  //   * Teléfono real     -> `adb reverse tcp:8000 tcp:8000` y usa localhost.
+  //   * Teléfono real     -> o la IP de la PC en la misma red Wi-Fi (el puerto
+  //                          8000 debe estar permitido en el Firewall).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "App (emulador Android)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "App (teléfono real + adb reverse)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_BASE_URL=http://localhost:8000/api"]
+    },
+    {
+      "name": "App (teléfono real + IP de la PC)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_BASE_URL=http://192.168.1.4:8000/api"]
+    },
+    {
+      "name": "App (escritorio o navegador)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    }
+  ]
+}

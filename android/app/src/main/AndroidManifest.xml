@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- CU16 (probador virtual): la cámara frontal se usa SOLO en el
+         dispositivo. Ningún frame se sube al backend ni se guarda. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- La app se instala aunque el dispositivo no tenga cámara: CU16 avisa
+         con un mensaje claro en lugar de fallar. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
     <application
         android:label="liveclothesshop_mobile"
         android:name="${applicationName}"

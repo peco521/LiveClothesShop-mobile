@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../../cu12_carrito/providers/carrito_provider.dart';
+import '../../cu16_realidad_aumentada/screens/probador_ra_screen.dart';
 import '../../shared/widgets/producto_visual.dart';
 import '../models/producto.dart';
 import '../providers/catalogo_provider.dart';
@@ -251,6 +252,26 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
                 : null,
             child: Text(_agregando ? 'Agregando…' : 'Agregar al carrito'),
           ),
+          const SizedBox(height: AppTheme.gap),
+          // CU16: probador virtual con la variante/color y la talla elegidas.
+          // Es una acción secundaria destacada: no compite con la compra.
+          if (variante != null)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                side: const BorderSide(color: AppColors.accent),
+              ),
+              onPressed: () => context.push(
+                ProbadorRaScreen.ruta(
+                  idProd: producto.idProd,
+                  idVar: variante.idVariante,
+                  talla: variante.talla.descripcion,
+                  cantidad: _cantidad,
+                ),
+              ),
+              icon: const Icon(Icons.camera_front_outlined),
+              label: const Text('Probar con realidad aumentada'),
+            ),
           const SizedBox(height: AppTheme.gap),
           OutlinedButton(
             onPressed: disponible
