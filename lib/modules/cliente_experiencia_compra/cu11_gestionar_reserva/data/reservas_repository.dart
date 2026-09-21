@@ -15,13 +15,13 @@ class ReservasRepository {
     int limit = 20,
     String? estado,
   }) async {
+    final query = <String, dynamic>{'offset': offset, 'limit': limit};
+    if (estado != null) {
+      query['estado'] = estado;
+    }
     final response = await _client.get<Map<String, dynamic>>(
       '/cliente/reservas',
-      query: {
-        'offset': offset,
-        'limit': limit,
-        if (estado != null) 'estado': estado,
-      },
+      query: query,
     );
     return ReservasListado.fromJson(response.data ?? const {});
   }

@@ -45,9 +45,13 @@ class PagoRepository {
 
   /// Solo para el modo simulación (pasarela mock en desarrollo).
   Future<PagoDetalle> procesar(int idPago, {String? escenario}) async {
+    final body = <String, dynamic>{};
+    if (escenario != null) {
+      body['escenario'] = escenario;
+    }
     final response = await _client.post<Map<String, dynamic>>(
       '/cliente/pagos/$idPago/procesar',
-      body: {if (escenario != null) 'escenario': escenario},
+      body: body,
     );
     return PagoDetalle.fromJson(response.data ?? const {});
   }

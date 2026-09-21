@@ -16,7 +16,7 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // El contador del carrito observa solo esa parte del estado (CU12).
     final cantidad = ref.watch(
-      carritoProvider.select((valor) => valor.valueOrNull?.cantidadItems ?? 0),
+      carritoProvider.select((valor) => valor.asData?.value.cantidadItems ?? 0),
     );
     return Scaffold(
       body: shell,

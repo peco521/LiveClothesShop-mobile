@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liveclothesshop_mobile/core/errors/app_exception.dart';
 
+import '../soporte/adaptador_falso.dart';
 import '../soporte/ambiente.dart';
 
 void main() {
@@ -21,16 +22,13 @@ void main() {
         'contrasena': 'Frase de prueba larga 123!',
       },
     );
-    expect(
-      await client.cookies.getCookies(Uri.parse('http://localhost:8000/api')),
-      isNotEmpty,
-    );
+    expect(await client.cookies.loadForRequest(uriApi(client)), isNotEmpty);
 
     await client.get<Map<String, dynamic>>('/auth/me');
     final reenvio = adaptador.ultima('GET', '/auth/me')!;
     // La cookie HttpOnly viaja de vuelta sin que Dart lea su valor.
     expect(
-      reenvio.headers['cookie'].toString(),
+      reenvio.headers.toString(),
       contains('liveclothes_session=$credencialSesion'),
     );
     // Nunca se combinan cookie y Bearer: el backend rechaza esa solicitud.
@@ -133,10 +131,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(avisos, hasLength(1));
-      expect(
-        await client.cookies.getCookies(Uri.parse('http://localhost:8000/api')),
-        isEmpty,
-      );
+      expect(await client.cookies.loadForRequest(uriApi(client)), isEmpty);
       await suscripcion.cancel();
       client.dispose();
     },

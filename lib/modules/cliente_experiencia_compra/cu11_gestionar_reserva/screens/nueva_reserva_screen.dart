@@ -97,9 +97,10 @@ class _NuevaReservaScreenState extends ConsumerState<NuevaReservaScreen> {
     final horarios = _nroSuc == null
         ? null
         : ref.watch(horariosSucursalProvider(_nroSuc!));
-    final horas = horarios?.valueOrNull == null
+    final datosHorarios = horarios?.asData?.value;
+    final horas = datosHorarios == null
         ? const <String>[]
-        : _horas(horarios!.valueOrNull!);
+        : _horas(datosHorarios);
     return Scaffold(
       appBar: AppBar(title: const Text('Reservar polera')),
       body: ListView(

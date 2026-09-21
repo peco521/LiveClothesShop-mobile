@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../data/catalogo_repository.dart';
+import '../models/producto.dart';
 import '../providers/catalogo_provider.dart';
 
 /// Hoja de filtros de CU10: modelo de polera (categoría), marca, temporada,

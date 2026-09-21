@@ -202,7 +202,8 @@ Carrito carritoFalso({bool vacio = false}) =>
 Reserva reservaFalsa({String estado = 'confirmada'}) =>
     Reserva.fromJson(_json(reservaJson(estado: estado)));
 
-VentaDetalle ventaFalsa() => VentaDetalle.fromJson(_json(ventaJson()));
+VentaDetalle ventaFalsa({String estado = 'registrada'}) =>
+    VentaDetalle.fromJson(_json(ventaJson(estado: estado)));
 
 PagoDetalle pagoFalso({String estado = 'pendiente', String? checkoutUrl}) =>
     PagoDetalle.fromJson({

@@ -61,7 +61,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final carrito = ref.watch(carritoProvider);
-    final pendiente = ref.watch(checkoutProvider).valueOrNull;
+    final pendiente = ref.watch(checkoutProvider).asData?.value;
     return Scaffold(
       appBar: AppBar(title: const Text('Resumen de compra')),
       body: carrito.when(

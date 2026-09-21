@@ -85,7 +85,7 @@ class _PagoScreenState extends ConsumerState<PagoScreen>
 
   Future<void> _pagar() async {
     final simulacion =
-        ref.read(configuracionPagoProvider).valueOrNull?.simulacion ?? false;
+        ref.read(configuracionPagoProvider).asData?.value.simulacion ?? false;
     setState(() {
       _ocupado = true;
       _aviso = null;
@@ -154,7 +154,7 @@ class _PagoScreenState extends ConsumerState<PagoScreen>
     AsyncValue<ConfiguracionPago> config,
     PagoDetalle? pago,
   ) {
-    final stripe = config.valueOrNull?.proveedor == 'stripe';
+    final stripe = config.asData?.value.proveedor == 'stripe';
     return ListView(
       padding: const EdgeInsets.all(AppTheme.gapLarge),
       children: [

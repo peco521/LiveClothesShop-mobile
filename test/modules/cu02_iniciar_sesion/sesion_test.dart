@@ -32,21 +32,11 @@ void main() {
         );
         expect(sesion.usuario.correo, 'ana@example.com');
         expect(sesion.rol.descripcion, 'Cliente');
-        expect(
-          await client.cookies.getCookies(
-            Uri.parse('http://localhost:8000/api'),
-          ),
-          isNotEmpty,
-        );
+        expect(await client.cookies.loadForRequest(uriApi(client)), isNotEmpty);
 
         await repositorio.cerrarSesion();
         await client.clearCookies();
-        expect(
-          await client.cookies.getCookies(
-            Uri.parse('http://localhost:8000/api'),
-          ),
-          isEmpty,
-        );
+        expect(await client.cookies.loadForRequest(uriApi(client)), isEmpty);
 
         // El login es un POST: llevó la defensa exigida por el middleware.
         expect(
@@ -82,10 +72,9 @@ void main() {
       'iniciar sesión deja el estado con datos y cerrar sesión lo limpia',
       () async {
         final falso = SesionRepositoryFalso();
-        final container = ProviderContainer(
-          overrides: overridesRepositorios(sesion: falso),
+        final container = await contenedorDePrueba(
+          overridesRepositorios(sesion: falso),
         );
-        addTearDown(container.dispose);
 
         expect(await container.read(sesionProvider.future), isNull);
 
@@ -93,12 +82,12 @@ void main() {
             .read(sesionProvider.notifier)
             .iniciarSesion(correo: 'ana@example.com', contrasena: contrasena);
         expect(
-          container.read(sesionProvider).valueOrNull?.usuario.nombreMostrado,
+          container.read(sesionProvider).asData?.value?.usuario.nombreMostrado,
           'Ana Pérez',
         );
 
         await container.read(sesionProvider.notifier).cerrarSesion();
-        expect(container.read(sesionProvider).valueOrNull, isNull);
+        expect(container.read(sesionProvider).asData?.value, isNull);
         expect(falso.logouts, 1);
       },
     );
@@ -112,10 +101,9 @@ void main() {
             'Revisa los datos ingresados: hay valores no válidos.',
           ),
         );
-        final container = ProviderContainer(
-          overrides: overridesRepositorios(sesion: falso),
+        final container = await contenedorDePrueba(
+          overridesRepositorios(sesion: falso),
         );
-        addTearDown(container.dispose);
 
         await container
             .read(sesionProvider.notifier)

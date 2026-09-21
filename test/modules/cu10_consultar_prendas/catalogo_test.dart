@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liveclothesshop_mobile/app/app.dart';
 import 'package:liveclothesshop_mobile/core/errors/app_exception.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu10_consultar_prendas/screens/catalogo_screen.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu17_recomendaciones/screens/recomendaciones_screen.dart';
@@ -11,14 +12,16 @@ import '../../soporte/datos_falsos.dart';
 import '../../soporte/repositorios_falsos.dart';
 
 void main() {
-  List<Override> conSesion({
-    CatalogoRepositoryFalso? catalogo,
-    RecomendacionesRepositoryFalso? recomendaciones,
-  }) => overridesRepositorios(
-    sesion: SesionRepositoryFalso(sesion: sesionFalsa()),
-    catalogo: catalogo,
-    recomendaciones: recomendaciones,
-  );
+  // ignore: prefer_function_declarations_over_variables — flutter_riverpod 3.4 no exporta `Override`.
+  final conSesion =
+      ({
+        CatalogoRepositoryFalso? catalogo,
+        RecomendacionesRepositoryFalso? recomendaciones,
+      }) => overridesRepositorios(
+        sesion: SesionRepositoryFalso(sesion: sesionFalsa()),
+        catalogo: catalogo,
+        recomendaciones: recomendaciones,
+      );
 
   group('CU10 catálogo', () {
     testWidgets('muestra carga y luego las poleras con su modelo', (
@@ -26,6 +29,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         ProviderScope(
+          retry: sinReintentosAutomaticos,
           overrides: conSesion(),
           child: const MaterialApp(home: CatalogoScreen()),
         ),
@@ -71,6 +75,7 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           ProviderScope(
+            retry: sinReintentosAutomaticos,
             overrides: conSesion(),
             child: const MaterialApp(home: RecomendacionesScreen()),
           ),

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,45 +20,50 @@ import '../../modules/cliente_experiencia_compra/cu15_historial_compra/screens/h
 import '../../modules/cliente_experiencia_compra/cu17_recomendaciones/screens/recomendaciones_screen.dart';
 import '../../modules/cliente_experiencia_compra/shared/providers/sesion_provider.dart';
 import '../../modules/cliente_experiencia_compra/shared/screens/cuenta_screen.dart';
-import 'app_shell.dart';
+import '../navigation/app_shell.dart';
 
 /// Rutas públicas: accesibles sin sesión (CU01, CU02, CU04).
-const rutasPublicas = {
-  '/login',
-  '/registro',
-  '/recuperar',
-  '/restablecer',
-  '/cargando',
-};
+const rutasPublicas = {'/login', '/registro', '/recuperar', '/restablecer'};
+
+/// Ruta puente que se muestra mientras se restaura la sesión (CU02).
+///
+/// No es pública a propósito: si no hay sesión vigente, el redirect manda al
+/// login en lugar de dejar al usuario atrapado mirando el indicador de carga.
+const rutaCarga = '/cargando';
 
 /// Router central: cada ruta carga la pantalla de su caso de uso y las rutas
 /// privadas quedan protegidas por sesión (también ante deep links).
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refresco = ValueNotifier<int>(0);
   // Cualquier cambio de sesión (login, logout, expiración) reevalúa la guarda.
-  ref.listen<AsyncValue<Object?>>(sesionProvider, (_, __) => refresco.value++);
+  ref.listen<AsyncValue<Object?>>(sesionProvider, (_, _) => refresco.value++);
   final router = GoRouter(
     initialLocation: '/catalogo',
     refreshListenable: refresco,
     redirect: (context, state) {
       final sesion = ref.read(sesionProvider);
       final ubicacion = state.matchedLocation;
-      final publica = rutasPublicas.contains(ubicacion);
-      if (sesion.isLoading)
-        return ubicacion == '/cargando' ? null : '/cargando';
-      if (sesion.valueOrNull == null) return publica ? null : '/login';
-      if (publica) return '/catalogo';
-      return null;
+      if (sesion.isLoading) {
+        return ubicacion == rutaCarga ? null : rutaCarga;
+      }
+      // Sin sesión: solo se permite quedarse en las rutas públicas.
+      if (sesion.asData?.value == null) {
+        return rutasPublicas.contains(ubicacion) ? null : '/login';
+      }
+      // Con sesión: las rutas públicas y la de carga llevan al catálogo (CU10).
+      return rutasPublicas.contains(ubicacion) || ubicacion == rutaCarga
+          ? '/catalogo'
+          : null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/registro', builder: (_, __) => const RegistroScreen()),
-      GoRoute(path: '/recuperar', builder: (_, __) => const RecuperarScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/registro', builder: (_, _) => const RegistroScreen()),
+      GoRoute(path: '/recuperar', builder: (_, _) => const RecuperarScreen()),
       GoRoute(
         path: '/restablecer',
-        builder: (_, __) => const RestablecerScreen(),
+        builder: (_, _) => const RestablecerScreen(),
       ),
-      GoRoute(path: '/cargando', builder: (_, __) => const _PantallaCarga()),
+      GoRoute(path: rutaCarga, builder: (_, _) => const _PantallaCarga()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
         branches: [
@@ -67,7 +71,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/catalogo',
-                builder: (_, __) => const CatalogoScreen(),
+                builder: (_, _) => const CatalogoScreen(),
               ),
             ],
           ),
@@ -75,7 +79,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/recomendaciones',
-                builder: (_, __) => const RecomendacionesScreen(),
+                builder: (_, _) => const RecomendacionesScreen(),
               ),
             ],
           ),
@@ -83,7 +87,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/reservas',
-                builder: (_, __) => const ReservasScreen(),
+                builder: (_, _) => const ReservasScreen(),
               ),
             ],
           ),
@@ -91,16 +95,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/carrito',
-                builder: (_, __) => const CarritoScreen(),
+                builder: (_, _) => const CarritoScreen(),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/cuenta',
-                builder: (_, __) => const CuentaScreen(),
-              ),
+              GoRoute(path: '/cuenta', builder: (_, _) => const CuentaScreen()),
             ],
           ),
         ],
@@ -124,7 +125,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           nroReserva: int.tryParse(state.pathParameters['nro'] ?? '') ?? 0,
         ),
       ),
-      GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
+      GoRoute(path: '/checkout', builder: (_, _) => const CheckoutScreen()),
       GoRoute(
         path: '/compra/:nro',
         builder: (_, state) => VentaDetalleScreen(
@@ -138,7 +139,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               int.tryParse(state.uri.queryParameters['nroVenta'] ?? '') ?? 0,
         ),
       ),
-      GoRoute(path: '/historial', builder: (_, __) => const HistorialScreen()),
+      GoRoute(path: '/historial', builder: (_, _) => const HistorialScreen()),
       GoRoute(
         path: '/historial/:nro',
         builder: (_, state) => CompraDetalleScreen(

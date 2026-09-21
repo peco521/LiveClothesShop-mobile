@@ -52,5 +52,5 @@ class CarritoController extends AsyncNotifier<Carrito> {
   }
 
   /// Contador para la barra de navegación (0 mientras carga o si falla).
-  int get cantidadItems => state.valueOrNull?.cantidadItems ?? 0;
+  int get cantidadItems => state.asData?.value.cantidadItems ?? 0;
 }

@@ -72,8 +72,9 @@ class _RegistroScreenState extends ConsumerState<RegistroScreen> {
 
   Future<void> _enviar() async {
     final formValido = _formKey.currentState!.validate();
-    if (_fechaNac == null)
+    if (_fechaNac == null) {
       setState(() => _error = 'Selecciona tu fecha de nacimiento');
+    }
     if (!formValido || _fechaNac == null) return;
     setState(() {
       _enviando = true;
@@ -182,8 +183,9 @@ class _RegistroScreenState extends ConsumerState<RegistroScreen> {
                   ),
                   validator: (value) {
                     final texto = value ?? '';
-                    if (texto.trim().isEmpty)
+                    if (texto.trim().isEmpty) {
                       return 'La contraseña no puede estar vacía';
+                    }
                     if (texto.length < 12) {
                       return 'La contraseña debe tener al menos 12 caracteres';
                     }

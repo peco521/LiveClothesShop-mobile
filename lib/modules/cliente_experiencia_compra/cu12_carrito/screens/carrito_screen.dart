@@ -90,7 +90,7 @@ class _CarritoScreenState extends ConsumerState<CarritoScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(AppTheme.gapLarge),
                   itemCount: carga.items.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(height: AppTheme.gap),
                   itemBuilder: (context, index) {
                     final item = carga.items[index];

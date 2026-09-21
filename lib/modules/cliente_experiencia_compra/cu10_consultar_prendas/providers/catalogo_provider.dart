@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/network/providers.dart';
 import '../../shared/providers/sesion_provider.dart';
 import '../data/catalogo_repository.dart';
 import '../models/producto.dart';

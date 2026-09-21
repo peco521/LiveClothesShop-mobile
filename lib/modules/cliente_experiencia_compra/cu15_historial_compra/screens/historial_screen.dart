@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/empty_view.dart';
 import '../../../../core/widgets/error_view.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../data/historial_repository.dart';
 
@@ -53,7 +54,7 @@ class HistorialScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(AppTheme.gapLarge),
             itemCount: data.items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppTheme.gap),
+            separatorBuilder: (_, _) => const SizedBox(height: AppTheme.gap),
             itemBuilder: (context, index) {
               final compra = data.items[index];
               return Card(

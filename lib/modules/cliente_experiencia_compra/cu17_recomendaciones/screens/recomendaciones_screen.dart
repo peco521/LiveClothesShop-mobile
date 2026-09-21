@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_view.dart';
 import '../../../../core/widgets/error_view.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../models/recomendacion.dart';
 import '../providers/recomendaciones_provider.dart';

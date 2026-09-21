@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/formatters.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 
 /// Estimación visual del descuento vigente (igual criterio que la web Angular).
 ///
@@ -36,7 +36,9 @@ PrecioVista cotizarPrecio({
       ? base * valorDescuento / 100
       : valorDescuento;
   final descuento = bruto.clamp(0, base).toDouble();
-  final porcentaje = base > 0 ? (descuento * 1000 / base).round() / 10 : 0;
+  final double porcentaje = base > 0
+      ? (descuento * 1000 / base).round() / 10
+      : 0;
   return PrecioVista(base: base, descuento: descuento, porcentaje: porcentaje);
 }
 
@@ -96,63 +98,6 @@ class ImagenProducto extends StatelessWidget {
                 errorWidget: error,
               ),
       ),
-    );
-  }
-}
-
-/// Texto de precio con etiqueta de oferta (reutilizado por CU10 y CU17).
-class PrecioProducto extends StatelessWidget {
-  const PrecioProducto({
-    super.key,
-    required this.precioMin,
-    required this.precioMax,
-    required this.tipoDescuento,
-    required this.valorDescuento,
-    this.desdeTexto = false,
-  });
-
-  final double? precioMin;
-  final double? precioMax;
-  final String? tipoDescuento;
-  final double valorDescuento;
-  final bool desdeTexto;
-
-  @override
-  Widget build(BuildContext context) {
-    if (precioMin == null) {
-      return const Text(
-        'Precio a consultar',
-        style: TextStyle(color: AppColors.muted),
-      );
-    }
-    final vista = cotizarPrecio(
-      precio: precioMin,
-      tipoDescuento: tipoDescuento,
-      valorDescuento: valorDescuento,
-    );
-    final rango = (precioMax ?? precioMin) != precioMin;
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 8,
-      children: [
-        Text(
-          '${rango && desdeTexto ? 'Desde ' : ''}${money(vista.total)}',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: vista.enOferta ? AppColors.priceSale : AppColors.ink,
-          ),
-        ),
-        if (vista.enOferta)
-          Text(
-            money(vista.base),
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.muted,
-              decoration: TextDecoration.lineThrough,
-            ),
-          ),
-      ],
     );
   }
 }

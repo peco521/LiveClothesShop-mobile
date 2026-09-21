@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/providers.dart';
+import '../../../../core/network/providers.dart';
 import '../../cu02_iniciar_sesion/data/sesion_repository.dart';
 import '../models/sesion.dart';
 
@@ -21,7 +21,7 @@ class SesionController extends AsyncNotifier<Sesion?> {
     final subscription = ref.watch(apiClientProvider).onUnauthorized.listen((
       _,
     ) {
-      if (state.valueOrNull != null) state = const AsyncData(null);
+      if (state.asData?.value != null) state = const AsyncData(null);
     });
     ref.onDispose(subscription.cancel);
     return ref.read(sesionRepositoryProvider).sesionActual();

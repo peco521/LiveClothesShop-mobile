@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:liveclothesshop_mobile/app/app.dart';
 
 import '../soporte/ambiente.dart';
 import '../soporte/datos_falsos.dart';
@@ -20,7 +19,9 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
 
     // Deep link directo a una ruta privada: la guarda la bloquea igual.
-    final contexto = tester.element(find.byType(MaterialApp));
+    // El contexto debe estar DENTRO del Router (MaterialApp.router lo monta por
+    // debajo de MaterialApp), así que se toma el Scaffold de la página visible.
+    final contexto = tester.element(find.byType(Scaffold).first);
     GoRouter.of(contexto).go('/carrito');
     await tester.pumpAndSettle();
     expect(find.text('Cargando tu carrito…'), findsNothing);

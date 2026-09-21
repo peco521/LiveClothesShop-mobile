@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../../cu12_carrito/providers/carrito_provider.dart';
@@ -248,7 +247,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
           const SizedBox(height: AppTheme.gap),
           ElevatedButton(
             onPressed: disponible && !_agregando
-                ? () => _agregarAlCarrito(variante!.idVariante)
+                ? () => _agregarAlCarrito(variante.idVariante)
                 : null,
             child: Text(_agregando ? 'Agregando…' : 'Agregar al carrito'),
           ),
@@ -256,7 +255,7 @@ class _ProductoDetalleScreenState extends ConsumerState<ProductoDetalleScreen> {
           OutlinedButton(
             onPressed: disponible
                 ? () => context.push(
-                    '/reserva/nueva?idVar=${variante!.idVariante}&cantidad=$_cantidad',
+                    '/reserva/nueva?idVar=${variante.idVariante}&cantidad=$_cantidad',
                   )
                 : null,
             child: const Text('Reservar en sucursal'),

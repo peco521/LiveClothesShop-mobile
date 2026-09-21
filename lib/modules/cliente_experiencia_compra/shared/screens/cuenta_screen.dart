@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/empty_view.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/empty_view.dart';
 import '../providers/sesion_provider.dart';
 
 /// Mi cuenta: pantalla compartida de la tienda (accesos a CU15/CU11 y logout).
@@ -45,7 +45,7 @@ class _CuentaScreenState extends ConsumerState<CuentaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sesion = ref.watch(sesionProvider).valueOrNull;
+    final sesion = ref.watch(sesionProvider).asData?.value;
     if (sesion == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Mi cuenta')),

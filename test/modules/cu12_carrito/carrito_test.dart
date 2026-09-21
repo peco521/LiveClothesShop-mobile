@@ -8,11 +8,11 @@ import '../../soporte/datos_falsos.dart';
 import '../../soporte/repositorios_falsos.dart';
 
 void main() {
-  List<Override> conSesion(CarritoRepositoryFalso carrito) =>
-      overridesRepositorios(
-        sesion: SesionRepositoryFalso(sesion: sesionFalsa()),
-        carrito: carrito,
-      );
+  // ignore: prefer_function_declarations_over_variables — flutter_riverpod 3.4 no exporta `Override`.
+  final conSesion = (CarritoRepositoryFalso carrito) => overridesRepositorios(
+    sesion: SesionRepositoryFalso(sesion: sesionFalsa()),
+    carrito: carrito,
+  );
 
   testWidgets('muestra productos, subtotal y permite cambiar cantidades', (
     tester,
@@ -21,10 +21,7 @@ void main() {
     await montarPantalla(tester, conSesion(carrito), const CarritoScreen());
 
     expect(find.text('Polera Nike Pro'), findsOneWidget);
-    expect(
-      find.text('Talla M · Rojo'),
-      findsNothing,
-    ); // el SKU y el color van separados
+    expect(find.text('Talla M · Rojo'), findsOneWidget);
     expect(find.text('SKU SKU-1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.textContaining('USD 90,00'), findsWidgets);

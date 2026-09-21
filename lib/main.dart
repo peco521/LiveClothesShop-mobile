@@ -12,6 +12,7 @@ Future<void> main() async {
   final apiClient = await ApiClient.create();
   runApp(
     ProviderScope(
+      retry: sinReintentosAutomaticos,
       overrides: [apiClientProvider.overrideWithValue(apiClient)],
       child: const LiveClothesShopApp(),
     ),

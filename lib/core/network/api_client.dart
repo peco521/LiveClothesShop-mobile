@@ -39,9 +39,9 @@ class ApiClient {
     );
     final unauthorized = StreamController<void>.broadcast();
     dio.interceptors.add(CookieManager(jar));
-    dio.interceptors.add(_BackendSecurityInterceptor());
+    dio.interceptors.add(BackendSecurityInterceptor());
     if (Environment.verboseNetworkLogs) {
-      dio.interceptors.add(_SafeLogInterceptor());
+      dio.interceptors.add(SafeLogInterceptor());
     }
     dio.interceptors.add(
       InterceptorsWrapper(
@@ -131,5 +131,51 @@ class ApiClient {
 
   void dispose() {
     _unauthorized.close();
+  }
+}
+
+/// Defensa exigida por el middleware de FastAPI en los métodos que escriben:
+/// `Origin` incluido en ALLOWED_ORIGINS + `X-CSRF-Protection: 1`. Los GET no la
+/// necesitan (el middleware solo protege métodos que cambian estado).
+///
+/// Es pública y vive en esta misma librería para poder reutilizarse y probarse.
+class BackendSecurityInterceptor extends Interceptor {
+  static const Set<String> _safeMethods = {'GET', 'HEAD', 'OPTIONS'};
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (!_safeMethods.contains(options.method.toUpperCase())) {
+      options.headers['X-CSRF-Protection'] = '1';
+      options.headers['Origin'] = Environment.requestOrigin;
+    }
+    handler.next(options);
+  }
+}
+
+/// Log mínimo en desarrollo: método, ruta y código de estado.
+/// Nunca imprime cookies, contraseñas ni cuerpos con datos sensibles.
+class SafeLogInterceptor extends Interceptor {
+  @override
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
+    _log(
+      '${response.requestOptions.method} ${response.requestOptions.path} '
+      '-> ${response.statusCode}',
+    );
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final status = err.response?.statusCode ?? 'sin respuesta';
+    _log('${err.requestOptions.method} ${err.requestOptions.path} -> $status');
+    handler.next(err);
+  }
+
+  void _log(String message) {
+    // ignore: avoid_print
+    print('[api] $message');
   }
 }

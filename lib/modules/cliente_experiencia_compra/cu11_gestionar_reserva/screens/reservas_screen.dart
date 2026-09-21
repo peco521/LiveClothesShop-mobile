@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_view.dart';
 import '../../../../core/widgets/error_view.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../providers/reservas_provider.dart';
 import '../widgets/reserva_card.dart';
@@ -49,7 +50,7 @@ class ReservasScreen extends ConsumerWidget {
             : ListView.separated(
                 padding: const EdgeInsets.all(AppTheme.gapLarge),
                 itemCount: data.items.length,
-                separatorBuilder: (_, __) =>
+                separatorBuilder: (_, _) =>
                     const SizedBox(height: AppTheme.gap),
                 itemBuilder: (context, index) {
                   final reserva = data.items[index];

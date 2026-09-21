@@ -32,8 +32,9 @@ class SesionRepository {
       final response = await _client.get<Map<String, dynamic>>('/auth/me');
       return Sesion.fromJson(response.data ?? const {});
     } on AppException catch (error) {
-      if (error.isUnauthorized || error.kind == AppErrorKind.forbidden)
+      if (error.isUnauthorized || error.kind == AppErrorKind.forbidden) {
         return null;
+      }
       rethrow;
     }
   }

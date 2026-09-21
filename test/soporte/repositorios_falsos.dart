@@ -4,7 +4,9 @@ import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu04_r
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu10_consultar_prendas/data/catalogo_repository.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu10_consultar_prendas/models/producto.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu11_gestionar_reserva/data/reservas_repository.dart';
+import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu11_gestionar_reserva/models/reserva.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu12_carrito/data/carrito_repository.dart';
+import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu12_carrito/models/carrito.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu13_compra_digital/data/compra_repository.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu13_compra_digital/models/compra.dart';
 import 'package:liveclothesshop_mobile/modules/cliente_experiencia_compra/cu14_pago_electronico/data/pago_repository.dart';

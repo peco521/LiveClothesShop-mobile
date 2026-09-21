@@ -45,7 +45,9 @@ String fechaHora(Object? value) {
 
 String fecha(Object? value) {
   final date = _parse(value);
-  if (date == null) return '—';
+  if (date == null) {
+    return '—';
+  }
   return '${_two(date.day)}/${_two(date.month)}/${date.year}';
 }
 
@@ -53,8 +55,9 @@ String fecha(Object? value) {
 String hora(Object? value) {
   final text = value?.toString() ?? '';
   final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(text);
-  if (match != null)
+  if (match != null) {
     return '${_two(int.parse(match.group(1)!))}:${match.group(2)}';
+  }
   final date = _parse(value);
   if (date == null) return '—';
   return '${_two(date.hour)}:${_two(date.minute)}';
