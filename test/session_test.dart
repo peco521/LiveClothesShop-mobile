@@ -6,10 +6,21 @@ import 'package:http/testing.dart';
 import 'package:liveclothesshop_mobile/core/api_client.dart';
 import 'package:liveclothesshop_mobile/core/credential_store.dart';
 import 'package:liveclothesshop_mobile/core/session.dart';
+import 'package:liveclothesshop_mobile/core/offline_sync.dart';
 
 const _token = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'; // 43 caracteres
 
+class _MemoryQueueStorage implements OfflineQueueStorage {
+  final values = <String, String>{};
+  @override
+  Future<String?> read(String key) async => values[key];
+  @override
+  Future<void> write(String key, String value) async => values[key] = value;
+}
+
 Map<String, dynamic> _me() => {
+      'empresa': 'manaco',
+      'plataforma': false,
       'usuario': {'idUsuario': 'c1', 'nombres': 'Ana', 'correo': 'ana@example.com'},
       'rol': {'nro': 'cliente', 'descripcion': 'Cliente'},
       'permisos': [],
@@ -19,6 +30,7 @@ Map<String, dynamic> _me() => {
 SessionState _state(MockClient client, CredentialStore store) => SessionState(
       api: ApiClient(httpClient: client, baseUrl: 'http://test', origin: 'http://test'),
       store: store,
+      queueStorage: _MemoryQueueStorage(),
     );
 
 void main() {
@@ -26,14 +38,14 @@ void main() {
     test('login guarda credencial de Set-Cookie y publica usuario', () async {
       final store = MemoryCredentialStore();
       final client = MockClient((request) async {
-        expect(request.url.path, '/api/auth/login');
+        expect(request.url.path, '/api/auth/login/cliente');
         expect(request.headers['Origin'], isNotNull);
         expect(request.headers['X-CSRF-Protection'], '1');
         return http.Response(jsonEncode(_me()), 200,
             headers: {'set-cookie': 'liveclothes_session=$_token; Path=/api; HttpOnly'});
       });
       final session = _state(client, store);
-      await session.login('ana@example.com', 'secreta');
+      await session.login('manaco', 'ana@example.com', 'secreta');
       expect(session.isAuthenticated, isTrue);
       expect(session.user?.correo, 'ana@example.com');
       expect(await store.read(), _token);
@@ -44,7 +56,7 @@ void main() {
       final store = MemoryCredentialStore();
       final client = MockClient((_) async => http.Response(jsonEncode(_me()), 200));
       final session = _state(client, store);
-      await session.login('ana@example.com', 'secreta');
+      await session.login('manaco', 'ana@example.com', 'secreta');
       expect(session.isAuthenticated, isFalse);
       expect(await store.read(), isNull);
     });
@@ -54,7 +66,7 @@ void main() {
         MockClient((_) async => http.Response('{"error":{"code":"x","message":"y"}}', 401)),
         MemoryCredentialStore(),
       );
-      await session.login('a@b.c', 'mala');
+      await session.login('manaco', 'a@b.c', 'mala');
       expect(session.isAuthenticated, isFalse);
       expect(session.error, contains('sesión'));
     });

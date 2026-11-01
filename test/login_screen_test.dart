@@ -38,6 +38,8 @@ void main() {
       final api = ApiClient(
         httpClient: MockClient((request) async => http.Response(
             jsonEncode({
+              'empresa': 'manaco',
+              'plataforma': false,
               'usuario': {'idUsuario': 'c1', 'nombres': 'Ana', 'correo': 'ana@example.com'},
               'rol': {'nro': 'cliente', 'descripcion': 'Cliente'},
               'permisos': [],
@@ -50,8 +52,9 @@ void main() {
       );
       final session = SessionState(api: api, store: MemoryCredentialStore());
       await tester.pumpWidget(_app(session));
-      await tester.enterText(find.byType(TextFormField).at(0), 'ana@example.com');
-      await tester.enterText(find.byType(TextFormField).at(1), 'secreta123456');
+      await tester.enterText(find.byType(TextFormField).at(0), 'manaco');
+      await tester.enterText(find.byType(TextFormField).at(1), 'ana@example.com');
+      await tester.enterText(find.byType(TextFormField).at(2), 'secreta123456');
       await tester.tap(find.text('Entrar'));
       await tester.pumpAndSettle();
       expect(find.text('Catálogo'), findsOneWidget);

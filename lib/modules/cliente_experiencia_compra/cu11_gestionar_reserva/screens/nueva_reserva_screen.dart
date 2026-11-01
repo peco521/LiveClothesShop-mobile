@@ -36,6 +36,7 @@ class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
   List<HorarioRango> _horarios = [];
   bool _busy = false;
   String? _error;
+  String? _success;
 
   ReservasApi get _api {
     final api = widget.api;
@@ -123,7 +124,30 @@ class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
       Navigator.of(context).pop(creada);
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.userMessage);
+      if (e.status == 0) {
+        try {
+          final session = context.read<SessionState>();
+          final id = await session.sync.enqueue(type: 'reserva', branch: _sucursal!, data: {
+            'lineas': _items.map((item) => {
+              'idVariante': item.variante.text.trim(), 'cantidad': int.parse(item.cantidad.text.trim()),
+            }).toList(),
+            'fecha': _fechaTexto(_fecha),
+            'hora': '${_hora.hour.toString().padLeft(2, '0')}:${_hora.minute.toString().padLeft(2, '0')}:00',
+          });
+          if (mounted) {
+            setState(() {
+              _success = 'Reserva guardada localmente como $id. Sigue pendiente hasta que el servidor confirme disponibilidad.';
+              _error = null;
+            });
+          }
+        } catch (_) {
+          if (mounted) {
+            setState(() => _error = 'No se pudo guardar la reserva offline. Vuelve a conectarte e inténtalo otra vez.');
+          }
+        }
+      } else {
+        setState(() => _error = e.userMessage);
+      }
     } on FormatException {
       if (!mounted) return;
       setState(() => _error = 'Revisa las cantidades: deben ser números enteros mayores a cero.');
@@ -234,6 +258,7 @@ class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
               onPressed: () => setState(() => _items.add(_ItemFila('', 1))),
             ),
             if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+            if (_success != null) Text(_success!, style: const TextStyle(color: Colors.green)),
             const SizedBox(height: 8),
             FilledButton(
               onPressed: _busy ? null : _guardar,

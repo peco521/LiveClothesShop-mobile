@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/offline_sync.dart';
 import 'core/session.dart';
 import 'modules/cliente_experiencia_compra/cu10_consultar_prendas/screens/catalogo_screen.dart';
 import 'modules/cliente_experiencia_compra/cu11_gestionar_reserva/screens/mis_reservas_screen.dart';
@@ -10,7 +11,9 @@ import 'modules/cliente_experiencia_compra/cu14_pago_electronico/screens/pago_sc
 import 'modules/cliente_experiencia_compra/cu11_gestionar_reserva/screens/nueva_reserva_screen.dart';
 import 'modules/seguridad_accesos/login_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await OfflineBackgroundWorker.initialize();
   runApp(const LiveClothesShopApp());
 }
 
@@ -83,6 +86,45 @@ class _TiendaGuard extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.watch<SessionState>();
     if (!session.isAuthenticated) return const LoginScreen();
-    return child;
+      return Column(children: [
+      _SyncStatus(session: session),
+      Expanded(child: child),
+    ]);
   }
+}
+
+class _SyncStatus extends StatefulWidget {
+  final SessionState session;
+  const _SyncStatus({required this.session});
+
+  @override
+  State<_SyncStatus> createState() => _SyncStatusState();
+}
+
+class _SyncStatusState extends State<_SyncStatus> {
+  Future<void> _sync() async {
+    await widget.session.sync.flush();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder(
+    future: widget.session.sync.list(),
+    builder: (context, snapshot) {
+      final operations = snapshot.data ?? const [];
+      final pending = operations.where((item) => item.state.name == 'pending' || item.state.name == 'retryPending').length;
+      final conflicts = operations.where((item) => item.state.name == 'conflict' || item.state.name == 'rejected').length;
+      return Material(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(children: [
+            Expanded(child: Text('${widget.session.restoredOffline ? 'Sin conexión · ' : ''}Empresa ${widget.session.user?.empresa ?? ''} · '
+              '$pending operaciones pendientes · $conflicts para revisar', maxLines: 1, overflow: TextOverflow.ellipsis)),
+            TextButton(onPressed: pending == 0 ? null : _sync, child: const Text('Sincronizar')),
+          ]),
+        ),
+      );
+    },
+  );
 }

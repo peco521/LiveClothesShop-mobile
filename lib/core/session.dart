@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
@@ -6,9 +7,12 @@ import 'api_client.dart';
 import 'api_config.dart';
 import 'api_error.dart';
 import 'credential_store.dart';
+import 'offline_sync.dart';
 
 /// Usuario autenticado (subconjunto público de GET /api/auth/me).
 class SessionUser {
+  final String? empresa;
+  final bool plataforma;
   final String idUsuario;
   final String? nombres;
   final String correo;
@@ -16,6 +20,8 @@ class SessionUser {
   final String expiraEn;
 
   const SessionUser({
+    required this.empresa,
+    required this.plataforma,
     required this.idUsuario,
     required this.nombres,
     required this.correo,
@@ -27,6 +33,8 @@ class SessionUser {
     final usuario = json['usuario'] as Map<String, dynamic>;
     final rol = json['rol'] as Map<String, dynamic>;
     return SessionUser(
+      empresa: json['empresa'] as String?,
+      plataforma: json['plataforma'] as bool? ?? false,
       idUsuario: usuario['idUsuario'] as String,
       nombres: usuario['nombres'] as String?,
       correo: usuario['correo'] as String,
@@ -43,23 +51,32 @@ enum SessionStatus { unknown, authenticated, unauthenticated }
 class SessionState extends ChangeNotifier {
   final ApiClient _api;
   final CredentialStore _store;
+  late final OfflineSyncQueue sync;
 
   SessionStatus status = SessionStatus.unknown;
   SessionUser? user;
   String? _credential;
   String? error;
+  bool restoredOffline = false;
 
-  SessionState({ApiClient? api, CredentialStore? store})
+  SessionState({ApiClient? api, CredentialStore? store, OfflineQueueStorage? queueStorage})
       : _api = api ?? ApiClient(),
-        _store = store ?? SecureCredentialStore(key: ApiConfig.credentialStorageKey);
+        _store = store ?? SecureCredentialStore(key: ApiConfig.credentialStorageKey) {
+    sync = OfflineSyncQueue(api: _api, queueStorage: queueStorage);
+  }
 
   bool get isAuthenticated => status == SessionStatus.authenticated;
 
-  Future<void> login(String correo, String contrasena) async {
+  Future<void> login(String empresa, String correo, String contrasena) async {
+    sync.pause();
+    _credential = null;
+    user = null;
+    await _store.delete();
     error = null;
     notifyListeners();
     try {
-      final response = await _api.postRaw('/api/auth/login', {
+      final response = await _api.postRaw('/api/auth/login/cliente', {
+        'empresa': empresa.trim().toLowerCase(),
         'correo': correo.trim().toLowerCase(),
         'contrasena': contrasena,
       });
@@ -70,8 +87,25 @@ class SessionState extends ChangeNotifier {
       await _store.write(credential);
       _credential = credential;
       user = SessionUser.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      if (user!.plataforma || user!.empresa == null || user!.empresa!.isEmpty) {
+        await _store.delete();
+        _credential = null;
+        user = null;
+        status = SessionStatus.unauthenticated;
+        error = 'La sesión no corresponde a una empresa';
+        return;
+      }
+      await _store.writeSessionSnapshot(response.body);
+      sync.activate(tenant: user!.empresa!, user: user!.idUsuario, credential: credential);
       status = SessionStatus.authenticated;
+      restoredOffline = false;
+      unawaited(sync.flush());
     } on ApiException catch (e) {
+      _credential = null;
+      user = null;
+      sync.pause();
+      await _store.delete();
+      await _store.deleteSessionSnapshot();
       error = e.userMessage;
       status = SessionStatus.unauthenticated;
     } finally {
@@ -84,16 +118,45 @@ class SessionState extends ChangeNotifier {
     try {
       _credential = await _store.read();
       if (_credential == null || _credential!.isEmpty) {
+        sync.pause();
         status = SessionStatus.unauthenticated;
         return;
       }
       final response = await _api.getRaw('/api/auth/me', credential: _credential);
       user = SessionUser.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      if (user!.plataforma || user!.empresa == null || user!.empresa!.isEmpty) {
+        throw const ApiException(401, 'autenticacion_rechazada');
+      }
+      await _store.writeSessionSnapshot(response.body);
+      sync.activate(tenant: user!.empresa!, user: user!.idUsuario, credential: _credential!);
       status = SessionStatus.authenticated;
-    } on ApiException {
+      restoredOffline = false;
+      unawaited(sync.flush());
+    } on ApiException catch (e) {
+      if (e.status == 0 && _credential != null) {
+        final snapshot = await _store.readSessionSnapshot();
+        if (snapshot != null) {
+          try {
+            user = SessionUser.fromJson(jsonDecode(snapshot) as Map<String, dynamic>);
+            if (!user!.plataforma && user!.empresa != null && user!.empresa!.isNotEmpty) {
+              sync.activate(tenant: user!.empresa!, user: user!.idUsuario, credential: _credential!);
+              status = SessionStatus.authenticated;
+              restoredOffline = true;
+              return;
+            }
+          } catch (_) {
+            // Snapshot corrupto: no se usa para establecer una identidad local.
+          }
+        }
+      }
       _credential = null;
       user = null;
-      await _store.delete();
+      sync.pause();
+      restoredOffline = false;
+      if (e.status != 0) {
+        await _store.delete();
+        await _store.deleteSessionSnapshot();
+      }
       status = SessionStatus.unauthenticated;
     } finally {
       notifyListeners();
@@ -110,8 +173,11 @@ class SessionState extends ChangeNotifier {
     } finally {
       _credential = null;
       user = null;
+      sync.pause();
       error = null;
       await _store.delete();
+      await _store.deleteSessionSnapshot();
+      restoredOffline = false;
       status = SessionStatus.unauthenticated;
       notifyListeners();
     }

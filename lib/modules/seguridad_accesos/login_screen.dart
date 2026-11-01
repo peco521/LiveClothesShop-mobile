@@ -13,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _form = GlobalKey<FormState>();
+  final _empresa = TextEditingController();
   final _correo = TextEditingController();
   final _contrasena = TextEditingController();
   bool _ver = false;
@@ -21,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _correo.dispose();
+    _empresa.dispose();
     _contrasena.dispose();
     super.dispose();
   }
@@ -29,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_form.currentState!.validate() || _busy) return;
     setState(() => _busy = true);
     final session = context.read<SessionState>();
-    await session.login(_correo.text, _contrasena.text);
+    await session.login(_empresa.text, _correo.text, _contrasena.text);
     if (!mounted) return;
     setState(() => _busy = false);
     if (session.isAuthenticated) {
@@ -51,9 +53,16 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.all(20),
               shrinkWrap: true,
               children: [
-                const Text('Bienvenido a LiveClothesShop',
+                const Text('Bienvenido a FashionStore',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
+                TextFormField(
+                  controller: _empresa,
+                  textCapitalization: TextCapitalization.none,
+                  decoration: const InputDecoration(labelText: 'Código de empresa'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa el código de empresa' : null,
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _correo,
                   keyboardType: TextInputType.emailAddress,

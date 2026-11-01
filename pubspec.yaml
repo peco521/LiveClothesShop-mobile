@@ -37,6 +37,7 @@ dependencies:
   http: ^1.6.0
   flutter_secure_storage: ^11.1.1
   provider: ^6.1.5+1
+  workmanager: ^0.10.10
 
 dev_dependencies:
   flutter_test:
