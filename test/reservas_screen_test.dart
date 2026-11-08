@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -33,9 +34,11 @@ class FakeReservasApi extends ReservasApi {
   List<SucursalCliente> sucursalesObj = const [];
   int cancelarLlamadas = 0;
   Map<String, dynamic>? creado;
+  Completer<ReservasListado>? delayed;
 
   @override
   Future<ReservasListado> listar({String? estado, int offset = 0, int limit = 20}) async {
+    if (delayed != null) { final pending = delayed!; delayed = null; return pending.future; }
     if (falla != null) throw falla!;
     return pagina!;
   }
@@ -72,6 +75,22 @@ Widget _app(Widget child) => ChangeNotifierProvider(
 
 void main() {
   group('MisReservasScreen', () {
+    testWidgets('otra cuenta descarta reservas pendientes de la vista anterior', (tester) async {
+      final pending = Completer<ReservasListado>();
+      final api = FakeReservasApi()..delayed=pending..pagina=ReservasListado(items: [], total: 0);
+      final a = SessionState(store: MemoryCredentialStore());
+      final b = SessionState(store: MemoryCredentialStore());
+      Widget app(SessionState session) => ChangeNotifierProvider<SessionState>.value(value: session,
+          child: MaterialApp(home: MisReservasScreen(api: api)));
+      await tester.pumpWidget(app(a)); await tester.pump();
+      // Different notifier/status is an account-context change, no old payload.
+      b.status = SessionStatus.authenticated;
+      await tester.pumpWidget(app(b)); await tester.pumpAndSettle();
+      pending.complete(ReservasListado(items: [_reserva()], total: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Reserva 7 · Central'), findsNothing);
+      expect(find.text('No tienes reservas registradas.'), findsOneWidget);
+    });
     testWidgets('muestra lista sin códigos internos', (tester) async {
       final api = FakeReservasApi()
         ..pagina = ReservasListado(items: [_reserva()], total: 1);

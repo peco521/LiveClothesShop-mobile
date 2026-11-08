@@ -3,22 +3,33 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/api_error.dart';
 import '../../../../core/session.dart';
+import '../../../../core/offline_sync.dart';
 import '../data/reservas_api.dart';
 import '../models/reserva.dart';
 import 'detalle_reserva_screen.dart';
 import 'nueva_reserva_screen.dart';
 
 /// Mis reservas: listado propio con filtro de estado y paginación.
-class MisReservasScreen extends StatefulWidget {
+class MisReservasScreen extends StatelessWidget {
   final ReservasApi? api;
 
   const MisReservasScreen({super.key, this.api});
 
   @override
-  State<MisReservasScreen> createState() => _MisReservasScreenState();
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionState>();
+    return _MisReservasView(key: ValueKey((session.user, session.status)), api: api);
+  }
 }
 
-class _MisReservasScreenState extends State<MisReservasScreen> {
+class _MisReservasView extends StatefulWidget {
+  final ReservasApi? api;
+  const _MisReservasView({super.key, this.api});
+  @override
+  State<_MisReservasView> createState() => _MisReservasScreenState();
+}
+
+class _MisReservasScreenState extends State<_MisReservasView> {
   final List<ReservaDetalle> _items = [];
   int _total = 0;
   int _offset = 0;
@@ -88,6 +99,27 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       ),
       body: Column(
         children: [
+          FutureBuilder<List<OfflineOperation>>(
+            future: context.read<SessionState>().sync.list(),
+            builder: (context, snapshot) {
+              final local = (snapshot.data ?? const <OfflineOperation>[]).where((item) => item.type == 'reserva').toList();
+              if (local.isEmpty) return const SizedBox.shrink();
+              return ExpansionTile(title: const Text('Reservas del dispositivo'), children: [
+                const Text('Una pendiente local no retiene stock hasta aceptación del servidor.'),
+                TextButton(onPressed: () async {
+                  await context.read<SessionState>().sync.flush();
+                  if (mounted) { await _cargar(reset: true); if (mounted) setState(() {}); }
+                }, child: const Text('Sincronizar reservas')),
+                for (final operation in local) ListTile(
+                  title: Text(operation.state.name),
+                  subtitle: Text('${operation.code ?? ''} ${operation.detail ?? ''}'),
+                  trailing: operation.nroReserva == null ? null : Text('Reserva ${operation.nroReserva}'),
+                  onTap: operation.nroReserva == null ? null : () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => DetalleReservaScreen(nro: operation.nroReserva!, api: widget.api))),
+                ),
+              ]);
+            },
+          ),
           Padding(
             padding: const EdgeInsets.all(12),
             child: DropdownButtonFormField<String>(

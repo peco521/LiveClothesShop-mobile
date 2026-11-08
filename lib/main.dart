@@ -10,6 +10,8 @@ import 'modules/cliente_experiencia_compra/cu13_compra_digital/screens/checkout_
 import 'modules/cliente_experiencia_compra/cu14_pago_electronico/screens/pago_screen.dart';
 import 'modules/cliente_experiencia_compra/cu11_gestionar_reserva/screens/nueva_reserva_screen.dart';
 import 'modules/seguridad_accesos/login_screen.dart';
+import 'modules/ventas_reportes/caja_screen.dart';
+import 'modules/cliente_experiencia_compra/cu15_historial_compra/historial_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,9 +31,11 @@ class LiveClothesShopApp extends StatelessWidget {
         theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo), useMaterial3: true),
         routes: {
           '/login': (_) => const LoginScreen(),
+          '/caja': (_) => const CajaScreen(),
           '/tienda': (_) => const _TiendaGuard(child: CatalogoScreen()),
           '/tienda/reservas': (_) => const _TiendaGuard(child: MisReservasScreen()),
           '/tienda/carrito': (_) => const _TiendaGuard(child: CarritoScreen()),
+          '/tienda/historial-compras': (_) => const _TiendaGuard(child: HistorialScreen()),
           '/tienda/finalizar-compra': (_) => const _TiendaGuard(child: CheckoutScreen()),
         },
         onGenerateRoute: (settings) {
@@ -71,6 +75,7 @@ class AuthGate extends StatelessWidget {
     if (session.status == SessionStatus.unknown) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    if (session.isAuthenticated && session.user?.isCashier == true) return const CajaScreen();
     if (session.isAuthenticated) return const _TiendaGuard(child: CatalogoScreen());
     return const LoginScreen();
   }
@@ -86,6 +91,7 @@ class _TiendaGuard extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.watch<SessionState>();
     if (!session.isAuthenticated) return const LoginScreen();
+    if (session.user?.tipo != 'C') return const Scaffold(body:Center(child:Text('Esta tienda requiere una cuenta de cliente. Usa el acceso de caja para cajeros.')));
       return Column(children: [
       _SyncStatus(session: session),
       Expanded(child: child),
@@ -119,9 +125,12 @@ class _SyncStatusState extends State<_SyncStatus> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: Row(children: [
-            Expanded(child: Text('${widget.session.restoredOffline ? 'Sin conexión · ' : ''}Empresa ${widget.session.user?.empresa ?? ''} · '
-              '$pending operaciones pendientes · $conflicts para revisar', maxLines: 1, overflow: TextOverflow.ellipsis)),
-            TextButton(onPressed: pending == 0 ? null : _sync, child: const Text('Sincronizar')),
+            Expanded(child: Text(snapshot.hasError || widget.session.sync.persistenceError != null
+              ? 'Cola local no disponible. No borres los datos de la aplicación; reintenta.'
+              : '${widget.session.restoredOffline ? 'Sin conexión · ' : ''}Empresa ${widget.session.user?.empresa ?? ''} · '
+                '$pending operaciones pendientes · $conflicts para revisar', maxLines: 1, overflow: TextOverflow.ellipsis)),
+            TextButton(onPressed: pending == 0 && !snapshot.hasError && widget.session.sync.persistenceError == null
+              ? null : _sync, child: const Text('Sincronizar')),
           ]),
         ),
       );

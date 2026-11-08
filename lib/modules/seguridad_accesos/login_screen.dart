@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/session.dart';
+import '../../core/session.dart';
 
 /// Inicio de sesión del cliente. Reutiliza POST /api/auth/login.
 class LoginScreen extends StatefulWidget {
@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _contrasena = TextEditingController();
   bool _ver = false;
   bool _busy = false;
+  bool _staff = false;
 
   @override
   void dispose() {
@@ -31,11 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_form.currentState!.validate() || _busy) return;
     setState(() => _busy = true);
     final session = context.read<SessionState>();
-    await session.login(_empresa.text, _correo.text, _contrasena.text);
+    await session.login(_empresa.text, _correo.text, _contrasena.text, staff: _staff);
     if (!mounted) return;
     setState(() => _busy = false);
     if (session.isAuthenticated) {
-      Navigator.of(context).pushReplacementNamed('/tienda');
+      Navigator.of(context).pushReplacementNamed(session.user?.isCashier == true ? '/caja' : '/tienda');
     }
   }
 
@@ -55,7 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Text('Bienvenido a FashionStore',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
+                 const SizedBox(height: 16),
+                 SwitchListTile(title: const Text('Acceso de cajero'), value: _staff,
+                   onChanged: _busy ? null : (value) => setState(() => _staff = value)),
                 TextFormField(
                   controller: _empresa,
                   textCapitalization: TextCapitalization.none,

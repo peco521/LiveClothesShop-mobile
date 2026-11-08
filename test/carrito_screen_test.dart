@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -36,9 +37,11 @@ class FakeCarritoApi extends CarritoApi {
   int modificarLlamadas = 0;
   int eliminarLlamadas = 0;
   (String, int)? agregado;
+  Completer<CarritoDetalle>? delayed;
 
   @override
   Future<CarritoDetalle> obtener() async {
+    if (delayed != null) { final pending = delayed!; delayed = null; return pending.future; }
     if (falla != null) throw falla!;
     return estado!;
   }
@@ -69,6 +72,20 @@ Widget _app(FakeCarritoApi api) => ChangeNotifierProvider(
 
 void main() {
   group('CarritoScreen', () {
+    testWidgets('cambiar sesión descarta carrito y respuesta tardía de otra cuenta', (tester) async {
+      final pending = Completer<CarritoDetalle>();
+      final api = FakeCarritoApi()..delayed=pending..estado=CarritoDetalle.vacio();
+      final a = SessionState(store: MemoryCredentialStore());
+      final b = SessionState(store: MemoryCredentialStore())..status=SessionStatus.authenticated;
+      Widget app(SessionState session) => ChangeNotifierProvider<SessionState>.value(value: session,
+          child: MaterialApp(home: CarritoScreen(api: api)));
+      await tester.pumpWidget(app(a)); await tester.pump();
+      await tester.pumpWidget(app(b)); await tester.pumpAndSettle();
+      pending.complete(CarritoDetalle(idCarrito: 5, items: [_item()], cantidadItems: 2, subtotal: 200));
+      await tester.pumpAndSettle();
+      expect(find.text('Camisa Oxford'), findsNothing);
+      expect(find.text('No tienes productos en tu carrito.'), findsOneWidget);
+    });
     testWidgets('muestra items, subtotal y sin checkout ni códigos', (tester) async {
       final api = FakeCarritoApi()
         ..estado = CarritoDetalle(idCarrito: 5, items: [_item()], cantidadItems: 2, subtotal: 200);

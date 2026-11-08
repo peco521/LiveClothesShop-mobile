@@ -7,16 +7,26 @@ import '../data/carrito_api.dart';
 import '../models/carrito.dart';
 
 /// Carrito: items con cantidad editable, precios del servidor y subtotal.
-class CarritoScreen extends StatefulWidget {
+class CarritoScreen extends StatelessWidget {
   final CarritoApi? api;
 
   const CarritoScreen({super.key, this.api});
 
   @override
-  State<CarritoScreen> createState() => _CarritoScreenState();
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionState>();
+    return _CarritoView(key: ValueKey((session.user, session.status)), api: api);
+  }
 }
 
-class _CarritoScreenState extends State<CarritoScreen> {
+class _CarritoView extends StatefulWidget {
+  final CarritoApi? api;
+  const _CarritoView({super.key, this.api});
+  @override
+  State<_CarritoView> createState() => _CarritoScreenState();
+}
+
+class _CarritoScreenState extends State<_CarritoView> {
   CarritoDetalle? _carrito;
   String? _error;
   bool _busy = true;

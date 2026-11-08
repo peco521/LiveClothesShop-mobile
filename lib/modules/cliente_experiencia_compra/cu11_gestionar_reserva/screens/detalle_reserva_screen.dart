@@ -7,17 +7,28 @@ import '../data/reservas_api.dart';
 import '../models/reserva.dart';
 
 /// Detalle de reserva: items, sucursal, estado y cancelación en dos pasos.
-class DetalleReservaScreen extends StatefulWidget {
+class DetalleReservaScreen extends StatelessWidget {
   final int nro;
   final ReservasApi? api;
 
   const DetalleReservaScreen({super.key, required this.nro, this.api});
 
   @override
-  State<DetalleReservaScreen> createState() => _DetalleReservaScreenState();
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionState>();
+    return _DetalleReservaView(key: ValueKey((session.user, session.status, nro)), nro: nro, api: api);
+  }
 }
 
-class _DetalleReservaScreenState extends State<DetalleReservaScreen> {
+class _DetalleReservaView extends StatefulWidget {
+  final int nro;
+  final ReservasApi? api;
+  const _DetalleReservaView({super.key, required this.nro, this.api});
+  @override
+  State<_DetalleReservaView> createState() => _DetalleReservaScreenState();
+}
+
+class _DetalleReservaScreenState extends State<_DetalleReservaView> {
   ReservaDetalle? _item;
   String? _error;
   bool _busy = true;

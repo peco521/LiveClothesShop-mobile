@@ -18,6 +18,9 @@ class SessionUser {
   final String correo;
   final String rol;
   final String expiraEn;
+  final String tipo;
+  final List<String> permisos;
+  bool get isCashier => tipo == 'E' && permisos.contains('CU24') && !plataforma;
 
   const SessionUser({
     required this.empresa,
@@ -27,6 +30,8 @@ class SessionUser {
     required this.correo,
     required this.rol,
     required this.expiraEn,
+    this.tipo = 'C',
+    this.permisos = const [],
   });
 
   factory SessionUser.fromJson(Map<String, dynamic> json) {
@@ -40,6 +45,8 @@ class SessionUser {
       correo: usuario['correo'] as String,
       rol: rol['nro'] as String,
       expiraEn: json['expiraEn'] as String,
+      tipo: usuario['tipo'] as String? ?? 'C',
+      permisos: (json['permisos'] as List? ?? const []).cast<String>(),
     );
   }
 }
@@ -67,7 +74,7 @@ class SessionState extends ChangeNotifier {
 
   bool get isAuthenticated => status == SessionStatus.authenticated;
 
-  Future<void> login(String empresa, String correo, String contrasena) async {
+  Future<void> login(String empresa, String correo, String contrasena, {bool staff = false}) async {
     sync.pause();
     _credential = null;
     user = null;
@@ -75,7 +82,7 @@ class SessionState extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final response = await _api.postRaw('/api/auth/login/cliente', {
+      final response = await _api.postRaw(staff ? '/api/auth/login/admin' : '/api/auth/login/cliente', {
         'empresa': empresa.trim().toLowerCase(),
         'correo': correo.trim().toLowerCase(),
         'contrasena': contrasena,
@@ -138,7 +145,9 @@ class SessionState extends ChangeNotifier {
         if (snapshot != null) {
           try {
             user = SessionUser.fromJson(jsonDecode(snapshot) as Map<String, dynamic>);
-            if (!user!.plataforma && user!.empresa != null && user!.empresa!.isNotEmpty) {
+            final expiration = DateTime.tryParse(user!.expiraEn);
+            if (!user!.plataforma && user!.empresa != null && user!.empresa!.isNotEmpty
+                && expiration != null && expiration.isAfter(DateTime.now())) {
               sync.activate(tenant: user!.empresa!, user: user!.idUsuario, credential: _credential!);
               status = SessionStatus.authenticated;
               restoredOffline = true;

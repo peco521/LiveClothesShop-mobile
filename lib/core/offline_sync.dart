@@ -12,11 +12,12 @@ import 'api_client.dart';
 import 'api_config.dart';
 import 'api_error.dart';
 import 'credential_store.dart';
+import 'offline_database.dart';
 
 const _backgroundSyncTask = 'fashionstore-offline-sync';
 
 /// Android WorkManager / iOS BGTaskScheduler dispatcher. Tokens and queue
-/// contents remain in secure storage; task input never contains credentials.
+/// credentials remain in secure storage; task input never contains credentials.
 @pragma('vm:entry-point')
 void offlineSyncCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
@@ -105,6 +106,26 @@ class _SecureQueueStorage implements OfflineQueueStorage {
   Future<void> write(String key, String value) => storage.write(key: key, value: value);
 }
 
+/// Legacy secure JSON is read once per owner and retained as a recovery copy.
+class SqliteOfflineQueueStorage implements OfflineQueueStorage {
+  final OfflineDatabase database;
+  final OfflineQueueStorage legacy;
+  SqliteOfflineQueueStorage({OfflineDatabase? database, required this.legacy})
+      : database = database ?? OfflineDatabase.shared;
+
+  @override
+  Future<String?> read(String key) async {
+    await database.migrateQueue(key, () => legacy.read(key));
+    return database.readQueue(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    await database.migrateQueue(key, () => legacy.read(key));
+    await database.writeQueue(key, value);
+  }
+}
+
 @immutable
 class OfflineOperation {
   final String id;
@@ -121,18 +142,25 @@ class OfflineOperation {
   final int nextAttemptMs;
   final String? code;
   final String? detail;
+  final int? nroReserva;
+  final int? nroVenta;
+  final Map<String, dynamic>? serverResult;
 
   const OfflineOperation({required this.id, required this.tenant, required this.user,
     required this.type, required this.formatVersion, required this.localDate,
     required this.branch, required this.data, required this.dependsOn,
     this.state = OfflineOperationState.pending, this.attempts = 0,
-    this.nextAttemptMs = 0, this.code, this.detail});
+    this.nextAttemptMs = 0, this.code, this.detail, this.nroReserva,
+    this.nroVenta, this.serverResult});
 
   Map<String, dynamic> toJson() => {
     'id': id, 'tenant': tenant, 'user': user, 'type': type, 'formatVersion': formatVersion,
     'localDate': localDate, 'branch': branch, 'data': data, 'dependsOn': dependsOn,
     'state': state.name, 'attempts': attempts, 'nextAttemptMs': nextAttemptMs,
     if (code != null) 'code': code, if (detail != null) 'detail': detail,
+    if (nroReserva != null) 'nroReserva': nroReserva,
+    if (nroVenta != null) 'nroVenta': nroVenta,
+    if (serverResult != null) 'serverResult': serverResult,
   };
 
   factory OfflineOperation.fromJson(Map<String, dynamic> json) => OfflineOperation(
@@ -144,6 +172,9 @@ class OfflineOperation {
     state: OfflineOperationState.values.firstWhere((state) => state.name == json['state'], orElse: () => OfflineOperationState.pending),
     attempts: json['attempts'] as int? ?? 0, nextAttemptMs: json['nextAttemptMs'] as int? ?? 0,
     code: json['code'] as String?, detail: json['detail'] as String?,
+    nroReserva: (json['nroReserva'] as num?)?.toInt(),
+    nroVenta: (json['nroVenta'] as num?)?.toInt(),
+    serverResult: json['serverResult'] == null ? null : Map<String, dynamic>.from(json['serverResult'] as Map),
   );
 }
 
@@ -152,13 +183,17 @@ class OfflineOperation {
 class OfflineSyncQueue {
   final ApiClient api;
   final OfflineQueueStorage storage;
+  final int Function() _nowMs;
   String? _tenant;
   String? _user;
   String? _credential;
   bool _running = false;
+  String? persistenceError;
 
-  OfflineSyncQueue({required this.api, FlutterSecureStorage? storage, OfflineQueueStorage? queueStorage})
-      : storage = queueStorage ?? _SecureQueueStorage(storage ?? const FlutterSecureStorage());
+  OfflineSyncQueue({required this.api, FlutterSecureStorage? storage, OfflineQueueStorage? queueStorage, int Function()? nowMs})
+      : _nowMs = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch),
+        storage = queueStorage ?? SqliteOfflineQueueStorage(
+          legacy: _SecureQueueStorage(storage ?? const FlutterSecureStorage()));
 
   void activate({required String tenant, required String user, required String credential}) {
     _tenant = tenant;
@@ -196,8 +231,11 @@ class OfflineSyncQueue {
     final operation = OfflineOperation(id: uuid, tenant: tenant, user: user, type: type,
       formatVersion: 1, localDate: DateTime.now().toUtc().toIso8601String(), branch: branch,
       data: Map.unmodifiable(data), dependsOn: List.unmodifiable(dependsOn));
-    final items = [...await list(), operation];
-    await _write(tenant, user, items);
+    final lock = await _openLock(tenant, user);
+    try {
+      final items = [...await _read(tenant, user), operation];
+      await _write(tenant, user, items);
+    } finally { await lock.close(); }
     unawaited(OfflineBackgroundWorker.schedule());
     return uuid;
   }
@@ -206,6 +244,7 @@ class OfflineSyncQueue {
     final tenant = _tenant, user = _user, credential = _credential;
     if (_running || tenant == null || user == null || credential == null) return;
     _running = true;
+    persistenceError = null;
     final lockName = base64Url.encode(utf8.encode('$tenant|$user')).replaceAll('=', '');
     final lockFile = File('${Directory.systemTemp.path}${Platform.pathSeparator}fashionstore-sync-$lockName.lock');
     RandomAccessFile? lock;
@@ -236,7 +275,7 @@ class OfflineSyncQueue {
       }
       final pending = (await list()).where((item) =>
         (item.state == OfflineOperationState.pending || item.state == OfflineOperationState.retryPending)
-        && item.nextAttemptMs <= DateTime.now().millisecondsSinceEpoch).toList()
+        && item.nextAttemptMs <= _nowMs()).toList()
         ..sort((a, b) => a.localDate.compareTo(b.localDate));
       for (var start = 0; start < pending.length; start += 25) {
         if (_tenant != tenant || _user != user || _credential != credential) return;
@@ -270,18 +309,30 @@ class OfflineSyncQueue {
               type: original.type, formatVersion: original.formatVersion, localDate: original.localDate,
               branch: original.branch, data: original.data, dependsOn: original.dependsOn,
               state: nextState, attempts: original.attempts + 1,
-              nextAttemptMs: nextState == OfflineOperationState.retryPending ? DateTime.now().millisecondsSinceEpoch + _backoff(original.attempts + 1) : 0,
-              code: result['codigo'] as String?, detail: result['detalle'] as String?));
+              nextAttemptMs: nextState == OfflineOperationState.retryPending ? _nowMs() + _backoff(original.attempts + 1) : 0,
+              code: result['codigo'] as String?, detail: result['detalle'] as String?,
+               nroReserva: (result['nroReserva'] as num?)?.toInt(),
+               nroVenta: (result['nroVenta'] as num?)?.toInt(),
+               serverResult: Map<String, dynamic>.from(result)));
           }
         } on ApiException catch (error) {
-          if (error.status == 401 || error.status == 403) break;
+          if (error.status == 401 || error.status == 403) {
+            for (final item in batch) {
+              await _replace(item, OfflineOperation(id: item.id, tenant: item.tenant, user: item.user,
+                type: item.type, formatVersion: item.formatVersion, localDate: item.localDate,
+                branch: item.branch, data: item.data, dependsOn: item.dependsOn,
+                state: OfflineOperationState.retryPending, attempts: item.attempts + 1,
+                code: 'sesion_requerida', detail: 'Inicia sesión de nuevo para sincronizar esta operación.'));
+            }
+            break;
+          }
           for (final item in batch) {
             final attempt = item.attempts + 1;
             await _replace(item, OfflineOperation(id: item.id, tenant: item.tenant, user: item.user,
               type: item.type, formatVersion: item.formatVersion, localDate: item.localDate,
               branch: item.branch, data: item.data, dependsOn: item.dependsOn,
               state: OfflineOperationState.retryPending, attempts: attempt,
-              nextAttemptMs: DateTime.now().millisecondsSinceEpoch + _backoff(attempt)));
+              nextAttemptMs: _nowMs() + _backoff(attempt)));
           }
           break;
         } catch (_) {
@@ -291,11 +342,15 @@ class OfflineSyncQueue {
               type: item.type, formatVersion: item.formatVersion, localDate: item.localDate,
               branch: item.branch, data: item.data, dependsOn: item.dependsOn,
               state: OfflineOperationState.retryPending, attempts: attempt,
-              nextAttemptMs: DateTime.now().millisecondsSinceEpoch + _backoff(attempt)));
+              nextAttemptMs: _nowMs() + _backoff(attempt)));
           }
           break;
         }
       }
+    } catch (_) {
+      // An unavailable/corrupt local database must not crash an unawaited
+      // login/background flush or pretend the operation reached the server.
+      persistenceError = 'No se pudo acceder a la cola local. Los datos existentes se conservan.';
     } finally {
       if (lock != null) {
         // Closing the handle releases the OS-level file lock. On Windows an
@@ -311,7 +366,25 @@ class OfflineSyncQueue {
     formatVersion: item.formatVersion, localDate: item.localDate, branch: item.branch,
     data: item.data, dependsOn: item.dependsOn, state: state, attempts: item.attempts,
     nextAttemptMs: item.nextAttemptMs, code: item.code, detail: item.detail,
+    nroReserva: item.nroReserva,
+    nroVenta: item.nroVenta, serverResult: item.serverResult,
   );
+
+  Future<RandomAccessFile> _openLock(String tenant, String user) async {
+    final name = base64Url.encode(utf8.encode('$tenant|$user')).replaceAll('=', '');
+    final file = File('${Directory.systemTemp.path}${Platform.pathSeparator}fashionstore-sync-$name.lock');
+    await file.parent.create(recursive: true);
+    final lock = await file.open(mode: FileMode.append);
+    try {
+      for (var attempt = 0;; attempt++) {
+        try { await lock.lock(FileLock.exclusive); return lock; }
+        on FileSystemException {
+          if (attempt >= 300) rethrow;
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+      }
+    } catch (_) { await lock.close(); rethrow; }
+  }
 
   int _backoff(int attempt) => min(3600000, 60000 * pow(2, min(attempt - 1, 6)).toInt());
 

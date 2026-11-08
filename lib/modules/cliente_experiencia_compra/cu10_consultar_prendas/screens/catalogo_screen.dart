@@ -3,21 +3,34 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/api_error.dart';
 import '../../../../core/session.dart';
+import '../../../../core/catalog_repository.dart';
 import '../data/catalogo_api.dart';
 import '../models/catalogo.dart';
 import 'detalle_screen.dart';
 
 /// Catálogo de prendas: búsqueda, filtros, grilla adaptable y paginación.
-class CatalogoScreen extends StatefulWidget {
+class CatalogoScreen extends StatelessWidget {
   final CatalogoApi? api;
 
   const CatalogoScreen({super.key, this.api});
 
   @override
-  State<CatalogoScreen> createState() => _CatalogoScreenState();
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionState>();
+    // Dispose all pages/facets and pending responses on account/store changes.
+    // The key contains no credential and no catalog data is persisted globally.
+    return _CatalogoView(key: ValueKey((session.user, session.status)), api: api);
+  }
 }
 
-class _CatalogoScreenState extends State<CatalogoScreen> {
+class _CatalogoView extends StatefulWidget {
+  final CatalogoApi? api;
+  const _CatalogoView({super.key, this.api});
+  @override
+  State<_CatalogoView> createState() => _CatalogoScreenState();
+}
+
+class _CatalogoScreenState extends State<_CatalogoView> {
   final _busqueda = TextEditingController();
   CatalogoFiltros _filtros = const CatalogoFiltros();
   final List<ProductoResumen> _items = [];
@@ -28,12 +41,16 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
   bool _moreBusy = false;
   String? _error;
   Map<String, List<FacetaItem>> _facetas = {};
+  CatalogoApi? _ownedApi;
+  bool _downloading = false;
+  CatalogSnapshot? _snapshot;
 
   CatalogoApi get _api {
     final api = widget.api;
     if (api != null) return api;
     final session = context.read<SessionState>();
-    return CatalogoApi(credential: () => session.credentialForApi);
+    return _ownedApi ??= CatalogoApi(credential: () => session.credentialForApi,
+      repository: CatalogRepository(), tenant: session.user?.empresa, user: session.user?.idUsuario);
   }
 
   @override
@@ -54,6 +71,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
       const grupos = ['categorias', 'marcas', 'colecciones', 'temporadas', 'tallas', 'colores'];
       final entries = <String, List<FacetaItem>>{};
       for (final grupo in grupos) {
+        if (!mounted) return;
         entries[grupo] = await _api.faceta(grupo);
       }
       if (mounted) setState(() => _facetas = entries);
@@ -83,6 +101,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
         _total = page.total;
         _offset = (reset ? 0 : _offset) + page.items.length;
         _error = null;
+        _snapshot = _api.lastSnapshot;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -114,6 +133,28 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
     _cargar(reset: true);
   }
 
+  Future<void> _descargar() async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    try {
+      final count = await _api.descargar(_filtros);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+        '$count prendas guardadas con variantes y sucursales. Solo este subconjunto; imágenes requieren conexión.')));
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.userMessage)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+          'No se pudo guardar el catálogo. La descarga anterior se conserva.')));
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
   Future<void> _abrirFiltros() async {
     final resultado = await showModalBottomSheet<CatalogoFiltros>(
       context: context,
@@ -134,6 +175,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
         title: const Text('Catálogo'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.download_for_offline_outlined),
+            tooltip: 'Descargar primeras 20 prendas de estos filtros',
+            onPressed: _downloading ? null : _descargar,
+          ),
+          IconButton(
             icon: const Icon(Icons.shopping_cart_outlined),
             tooltip: 'Carrito',
             onPressed: () => Navigator.of(context).pushNamed('/tienda/carrito'),
@@ -142,6 +188,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
             icon: const Icon(Icons.event_note),
             tooltip: 'Mis reservas',
             onPressed: () => Navigator.of(context).pushNamed('/tienda/reservas'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'Historial de compras',
+            onPressed: () => Navigator.of(context).pushNamed('/tienda/historial-compras'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -155,6 +206,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
       ),
       body: Column(
         children: [
+          if (_downloading) const LinearProgressIndicator(),
+          if (_snapshot != null)
+            Padding(padding: const EdgeInsets.all(8), child: Text(
+              'Sin conexión · subconjunto descargado ${_snapshot!.downloadedAt.toLocal()} · '
+              '${_snapshot!.stale ? 'desactualizado (>24 h)' : 'stock/precios por confirmar'}')),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(

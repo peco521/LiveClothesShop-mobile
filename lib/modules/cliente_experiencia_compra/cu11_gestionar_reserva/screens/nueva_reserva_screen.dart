@@ -7,7 +7,7 @@ import '../data/reservas_api.dart';
 import '../models/reserva.dart';
 
 /// Nueva reserva: sucursal, fecha/hora e items (variante + cantidad).
-class NuevaReservaScreen extends StatefulWidget {
+class NuevaReservaScreen extends StatelessWidget {
   final ReservasApi? api;
   final String? idVarInicial;
   final int cantidadInicial;
@@ -15,7 +15,20 @@ class NuevaReservaScreen extends StatefulWidget {
   const NuevaReservaScreen({super.key, this.api, this.idVarInicial, this.cantidadInicial = 1});
 
   @override
-  State<NuevaReservaScreen> createState() => _NuevaReservaScreenState();
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionState>();
+    return _NuevaReservaView(key: ValueKey((session.user, session.status)), api: api,
+        idVarInicial: idVarInicial, cantidadInicial: cantidadInicial);
+  }
+}
+
+class _NuevaReservaView extends StatefulWidget {
+  final ReservasApi? api;
+  final String? idVarInicial;
+  final int cantidadInicial;
+  const _NuevaReservaView({super.key, this.api, this.idVarInicial, this.cantidadInicial = 1});
+  @override
+  State<_NuevaReservaView> createState() => _NuevaReservaScreenState();
 }
 
 class _ItemFila {
@@ -26,7 +39,7 @@ class _ItemFila {
         cantidad = TextEditingController(text: '$cantidad');
 }
 
-class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
+class _NuevaReservaScreenState extends State<_NuevaReservaView> {
   final _form = GlobalKey<FormState>();
   int? _sucursal;
   DateTime _fecha = DateTime.now().add(const Duration(days: 1));
@@ -99,6 +112,7 @@ class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
   }
 
   Future<void> _guardar() async {
+    if (_success != null) return;
     if (!_form.currentState!.validate() || _sucursal == null || _items.isEmpty || _busy) {
       if (_sucursal == null || _items.isEmpty) {
         setState(() => _error = 'Selecciona sucursal y añade al menos una prenda.');
@@ -110,6 +124,30 @@ class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
       _error = null;
     });
     try {
+      if (widget.api == null) {
+        // Save the UUID before any HTTP call, also when online. Transport loss
+        // retries that same operation and cannot create a second stock hold.
+        final session = context.read<SessionState>();
+        final id = await session.sync.enqueue(type: 'reserva', branch: _sucursal!, data: {
+          'lineas': _items.map((item) => {'idVariante': item.variante.text.trim(),
+            'cantidad': int.parse(item.cantidad.text.trim())}).toList(),
+          'fecha': _fechaTexto(_fecha),
+          'hora': '${_hora.hour.toString().padLeft(2, '0')}:${_hora.minute.toString().padLeft(2, '0')}:00',
+        });
+        await session.sync.flush();
+        if (!mounted) return;
+        final operations = await session.sync.list();
+        if (!mounted) return;
+        final operation = operations.where((item) => item.id == id).firstOrNull;
+        if (operation?.nroReserva != null) {
+          final created = await _api.detalle(operation!.nroReserva!);
+          if (mounted) Navigator.of(context).pop(created);
+        } else {
+          setState(() => _success = 'Reserva local $id: ${operation?.state.name ?? 'pending'}. '
+              'No retiene stock hasta aceptación del servidor. Consulta aceptación o conflicto en Mis reservas.');
+        }
+        return;
+      }
       final creada = await _api.crear(ReservaCrear(
         nroSuc: _sucursal!,
         fechaReserva: _fechaTexto(_fecha),
@@ -151,6 +189,8 @@ class _NuevaReservaScreenState extends State<NuevaReservaScreen> {
     } on FormatException {
       if (!mounted) return;
       setState(() => _error = 'Revisa las cantidades: deben ser números enteros mayores a cero.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'No se pudo guardar la reserva. Conserva los datos e inténtalo nuevamente.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

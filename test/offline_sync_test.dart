@@ -16,6 +16,55 @@ class MemoryQueueStorage implements OfflineQueueStorage {
 }
 
 void main() {
+  test('sesión vencida conserva UUID; cambio de empresa no lo envía y login propio lo acepta', () async {
+    final storage = MemoryQueueStorage();
+    var expired = true;
+    final sent = <String>[];
+    final api = ApiClient(httpClient: MockClient((request) async {
+      final operation = (jsonDecode(request.body)['operaciones'] as List).single;
+      sent.add(operation['id'] as String);
+      if (expired) return http.Response('{}', 401);
+      return http.Response(jsonEncode({'resultados': [{'id': operation['id'],
+        'estado': 'sincronizada', 'nroReserva': 77}]}), 200);
+    }), baseUrl: 'https://example.test', origin: 'https://example.test');
+    final queue = OfflineSyncQueue(api: api, queueStorage: storage)
+      ..activate(tenant: 'a', user: 'cliente-a', credential: 'old');
+    final id = await queue.enqueue(type: 'reserva', branch: 1, data: {'lineas': []});
+    await queue.flush();
+    expect((await queue.list()).single.id, id);
+    expect((await queue.list()).single.code, 'sesion_requerida');
+    expect((await queue.list()).single.state, OfflineOperationState.retryPending);
+    queue.activate(tenant: 'b', user: 'cliente-b', credential: 'other');
+    expect(await queue.list(), isEmpty);
+    await queue.flush(); expect(sent, [id]);
+    expired = false;
+    queue.activate(tenant: 'a', user: 'cliente-a', credential: 'new');
+    await queue.flush();
+    expect(sent, [id, id]);
+    final restored = OfflineSyncQueue(api: api, queueStorage: storage)
+      ..activate(tenant: 'a', user: 'cliente-a', credential: 'new');
+    expect((await restored.list()).single.nroReserva, 77);
+    expect((await restored.list()).single.state, OfflineOperationState.synchronized);
+  });
+
+  test('encolados concurrentes no pierden operaciones y conflictos/rechazos quedan persistidos', () async {
+    final storage = MemoryQueueStorage();
+    final api = ApiClient(httpClient: MockClient((request) async {
+      final operations = jsonDecode(request.body)['operaciones'] as List;
+      return http.Response(jsonEncode({'resultados': [for (var i=0; i<operations.length; i++)
+        {'id': operations[i]['id'], 'estado': i==0 ? 'conflicto' : 'rechazada', 'codigo': 'prueba'}]}), 200);
+    }), baseUrl: 'https://example.test', origin: 'https://example.test');
+    final queue = OfflineSyncQueue(api: api, queueStorage: storage)
+      ..activate(tenant: 'a', user: 'cliente', credential: 'test');
+    final ids = await Future.wait([queue.enqueue(type: 'reserva', branch: 1, data: {}),
+      queue.enqueue(type: 'reserva', branch: 1, data: {})]);
+    expect((await queue.list()).map((item) => item.id).toSet(), ids.toSet());
+    await queue.flush();
+    final items = await queue.list();
+    expect(items, hasLength(2));
+    expect(items.map((item) => item.state).toSet(), {OfflineOperationState.conflict, OfflineOperationState.rejected});
+  });
+
   test('persiste por empresa/usuario y sincroniza idempotente con estado servidor', () async {
     final storage = MemoryQueueStorage();
     final requests = <http.Request>[];

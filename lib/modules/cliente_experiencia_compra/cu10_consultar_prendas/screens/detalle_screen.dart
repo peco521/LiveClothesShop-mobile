@@ -3,12 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/api_error.dart';
 import '../../../../core/session.dart';
+import '../../../../core/catalog_repository.dart';
 import '../data/catalogo_api.dart';
 import '../models/catalogo.dart';
 import '../../cu12_carrito/data/carrito_api.dart';
 
 /// Detalle de prenda: variantes, talla, colores, precio y disponibilidad.
-class DetalleScreen extends StatefulWidget {
+class DetalleScreen extends StatelessWidget {
   final String idProd;
   final CatalogoApi? api;
   final CarritoApi? carritoApi;
@@ -16,16 +17,33 @@ class DetalleScreen extends StatefulWidget {
   const DetalleScreen({super.key, required this.idProd, this.api, this.carritoApi});
 
   @override
-  State<DetalleScreen> createState() => _DetalleScreenState();
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionState>();
+    return _DetalleView(
+      key: ValueKey((session.user, session.status, idProd)),
+      idProd: idProd, api: api, carritoApi: carritoApi,
+    );
+  }
 }
 
-class _DetalleScreenState extends State<DetalleScreen> {
+class _DetalleView extends StatefulWidget {
+  final String idProd;
+  final CatalogoApi? api;
+  final CarritoApi? carritoApi;
+  const _DetalleView({super.key, required this.idProd, this.api, this.carritoApi});
+  @override
+  State<_DetalleView> createState() => _DetalleScreenState();
+}
+
+class _DetalleScreenState extends State<_DetalleView> {
   ProductoDetalle? _item;
   String? _error;
   bool _busy = true;
   String? _seleccionada;
   int _cantidad = 1;
   bool _agregando = false;
+  CatalogoApi? _ownedApi;
+  CatalogSnapshot? _snapshot;
 
   @override
   void initState() {
@@ -36,7 +54,9 @@ class _DetalleScreenState extends State<DetalleScreen> {
   CatalogoApi get _api {
     final api = widget.api;
     if (api != null) return api;
-    return CatalogoApi(credential: () => context.read<SessionState>().credentialForApi);
+    final session = context.read<SessionState>();
+    return _ownedApi ??= CatalogoApi(credential: () => session.credentialForApi,
+      repository: CatalogRepository(), tenant: session.user?.empresa, user: session.user?.idUsuario);
   }
 
   CarritoApi get _carrito {
@@ -55,6 +75,7 @@ class _DetalleScreenState extends State<DetalleScreen> {
       if (!mounted) return;
       setState(() {
         _item = item;
+        _snapshot = _api.lastSnapshot;
         if (item.variantes.length == 1) _seleccionada = item.variantes.first.id;
       });
     } on ApiException catch (e) {
@@ -92,7 +113,8 @@ class _DetalleScreenState extends State<DetalleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de prenda')),
+      appBar: AppBar(title: Text(_snapshot == null ? 'Detalle de prenda' :
+        'Copia ${_snapshot!.downloadedAt.toLocal()} · ${_snapshot!.stale ? 'desactualizada' : 'sin conexión'}')),
       body: _cuerpo(),
     );
   }
