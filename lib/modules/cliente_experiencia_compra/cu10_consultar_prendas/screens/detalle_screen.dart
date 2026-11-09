@@ -163,6 +163,26 @@ class _DetalleScreenState extends State<_DetalleView> {
               ),
             )),
         const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          icon: const Icon(Icons.accessibility_new),
+          label: const Text('Probar en vestidor virtual AR (CU23)'),
+          onPressed: () {
+            VarianteDetalle? varSeleccionada;
+            try {
+              varSeleccionada = item.variantes.firstWhere((v) => v.id == _seleccionada);
+            } catch (_) {
+              if (item.variantes.isNotEmpty) varSeleccionada = item.variantes.first;
+            }
+            Navigator.of(context).pushNamed(
+              '/tienda/vestidor',
+              arguments: {
+                'producto': item,
+                'variante': varSeleccionada,
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 8),
         FilledButton.icon(
           icon: const Icon(Icons.event_note),
           label: const Text('Reservar esta variante'),

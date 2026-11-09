@@ -12,6 +12,8 @@ import 'modules/cliente_experiencia_compra/cu11_gestionar_reserva/screens/nueva_
 import 'modules/seguridad_accesos/login_screen.dart';
 import 'modules/ventas_reportes/caja_screen.dart';
 import 'modules/cliente_experiencia_compra/cu15_historial_compra/historial_screen.dart';
+import 'modules/cliente_experiencia_compra/cu10_consultar_prendas/models/catalogo.dart';
+import 'modules/cliente_experiencia_compra/cu23_vestidor_virtual/screens/vestidor_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +58,21 @@ class LiveClothesShopApp extends StatelessWidget {
                 ),
               ),
             );
+          }
+          if (settings.name == '/tienda/vestidor') {
+            final args = settings.arguments as Map<String, dynamic>?;
+            final prod = args?['producto'] as ProductoDetalle?;
+            final varSel = args?['variante'] as VarianteDetalle?;
+            if (prod != null) {
+              return MaterialPageRoute(
+                builder: (_) => _TiendaGuard(
+                  child: VestidorScreen(
+                    producto: prod,
+                    varianteInicial: varSel,
+                  ),
+                ),
+              );
+            }
           }
           return null;
         },
